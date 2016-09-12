@@ -1,182 +1,116 @@
-This project is a starting point for AngularJS projects using the [Gulp](http://gulpjs.com/) streaming build system. Almost everything important is in [gulpfile.js](https://github.com/paislee/healthy-gulp-angular/blob/master/gulpfile.js).
+# AngularJS-Boilerplate
+Simple AngularJS Boilerplate to kick start your new project with SASS support and Gulp watch/build tasks
 
-For a full discussion of the setup, please refer to the companion [blog post](http://paislee.io/a-healthy-gulp-setup-for-angularjs-projects).
+# Features
+* SASS support including sourceMaps
+* Minimal CSS styling of the view
+* Gulp watch, build and local server tasks
+* Responsive navigation
+* Owl slider directive
+* localStorage service for set, get, remove data
+* queryService $http wrapper to handle calls
+* clear folder structure
+* less than 10 request in build version
+* minified CSS and JS build files
+* google analytics snippet
 
-## Installation
+## Download
+```bash
+bower install angularjs-boilerplate
+```
 
-Before running any Gulp tasks:
+or
 
-1. Check out this repository
-2. Ensure you have node installed
-3. Run `npm install` in the root directory (this will install bower dependencies too)
-4. For livereload functionality, install the [livereload Chrome extension](https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei)
+```bash
+git clone https://github.com/jbutko/AngularJS-Boilerplate.git
+```
 
-## Project Structure
+## 1. Setup
+```bash
+npm install
+```
+- install all npm and bower dependencies
 
-The project ships with a directory structure like:
+**Note:** If `npm install` fails during dependency installation it will be likely caused by `gulp-imagemin`. In that case remove `gulp-imagemin` dependency from `package.json`, run `npm install` again and then install `gulp-imagemin` separately with following command: `npm install gulp-imagemin --save-dev`
 
-    /healthy-gulp-angular
-    |
-    |---- package.json
-    |
-    |---- bower.json
-    |
-    |---- gulpfile.js
-    |
-    |---- /app
-    |     |
-    |     |---- index.html
-    |     |---- app.js
-    |     |
-    |     |---- /styles
-    |     |     |
-    |     |     |---- _settings.scss
-    |     |     |---- app.scss
-    |     |
-    |     |---- /components
-    |           |
-    |           ...
-    |
-    |---- server.js
-    |
-    |---- /devServer
-    |     |
-    |     |---- ...
-    |
-    |---- (/dist.dev)
-    |
-    |---- (/dist.prod)
-    
+## 2. Watch files
+```bash
+gulp
+```
+- all SCSS/HTML will be watched for changes and injected into browser thanks to BrowserSync
 
-__Let's break this down..__
+## 3. Build production version
+```bash
+gulp build
+```
+- this will process following tasks:
+* clean _build folder
+* compile SASS files, minify and uncss compiled css
+* copy and optimize images
+* minify and copy all HTML files into $templateCache
+* build index.html
+* minify and copy all JS files
+* copy fonts
+* show build folder size
 
-#### [package.json](https://github.com/paislee/healthy-gulp-angular/blob/master/package.json)
+## 4. Start webserver without watch task
+```bash
+gulp server
+```
 
-Server-side (command-line) dependencies.
+## 5. Start webserver from build folder
+```bash
+gulp server-build
+```
 
-#### [bower.json](https://github.com/paislee/healthy-gulp-angular/blob/master/bower.json)
+## Contact
+Copyright (C) 2015 Jozef Butko<br>
+[www.jozefbutko.com/resume](http://www.jozefbutko.com/resume)<br>
+[www.github.com/jbutko](http://www.github.com/jbutko)<br>
+[@jozefbutko](http://www.twitter.com/jozefbutko)<br>
+Released under MIT license
 
-Client-side (browser) dependencies.
+## Changelog
+### 1.1.7
+- Install all dependencies with 'npm install' (bower included) - pull req #7 by @bbodine1<br>
+15.05.2015
 
-#### [gulpfile.js](https://github.com/paislee/healthy-gulp-angular/blob/master/gulpfile.js)
+### 1.1.6
+- Cleaned up the gulpfile with gulp-load-plugins - pull req #6 by @davieschoots<br>
+26.04.2015
 
-Where all the Gulp streams and tasks are specified. Tasks are outlined below. This file is discussed in detail in the [blog post](http://paislee.io/a-healthy-gulp-setup-for-angularjs-projects).
+### 1.1.5
+- added MIT License<br>
+19.04.2015
 
-#### [/app](https://github.com/paislee/healthy-gulp-angular/blob/master/app)
+### 1.1.4
+- added minification of JS files in build task<br>
+- added favicon<br>
+- gulpfile.js beautify and clean up<br>
+- added owl carousel into demo<br>
+04.04.2015
 
-All first-party application source code lives here, including HTML, scripts, and styles of whatever flavor.
+### 1.1.3
+- index.html update: added browserupgrade tag<br>
+- index.html update: http-equiv meta tag, google analytics support<br>
+- comments update in gulpfile.js<br>
+- gulpfile.js formatting<br>
+- pull request #1: removed duplicate gulp require in gulpfile.js<br>
+04.04.2015
 
-#### [/app/index.html](https://github.com/paislee/healthy-gulp-angular/blob/master/app/index.html)
+### 1.1.2
+- package.json and gulpfile.js clean up<br>
+02.04.2015
 
-The single page app "shell page". Adapted from [Angular Seed](https://github.com/angular/angular-seed/blob/master/app/index.html). All sources are automatically wired in with gulp-inject.
+### 1.1.1
+- opened responsive nav fix, css build .min appendix, live demo, github icons<br>
+31.03.2015
 
-#### [/app/app.js](https://github.com/paislee/healthy-gulp-angular/blob/master/app/app.js)
+### 1.1.0
+- many improvements: responsive nav, code clean up, gulp angular templateCache
+support, gulp task for local server, SASS sourceMaps support<br>
+29.03.2015
 
-The app's main angular module is defined here. This file is always loaded first with gulp-angular-filesort.
-
-#### [/app/components](https://github.com/paislee/healthy-gulp-angular/blob/master/app/components)
-
-I like to group my angular scripts by comonent. Each sub-directory here typically contains a directive and a matching html partial.
-
-#### [/app/styles](https://github.com/paislee/healthy-gulp-angular/blob/master/app/styles)
-
-Custom app styles (I use SASS) live here. There's also a foundation settings file.
-
-#### [server.js](https://github.com/paislee/healthy-gulp-angular/blob/master/server.js)
-
-This is the entrypoint for the ExpressJS development server. It respects the environment variable `NODE_ENV`, taking its value as the directory out of which to serve static resources. It defaults to `dist.dev` to serve development files, and also accepts `dist.prod` to serve the production files.
-
-#### [/devServer](https://github.com/paislee/healthy-gulp-angular/blob/master/devServer)
-
-The scripts for the development server. I'll typically put mock API responses in here.
-
-### Processed Sources
-
-The gulp tasks listed below deal with taking sources from /app and "compiling" them for either development or production. `*-dev` tasks will output to /dist.dev, and `*-prod` will output to /dist.prod. Here's an overview of the directory structures for each:
-
-### /dist.dev
-
-Sources built for development. Styles are compiled to CSS. Everything else from /app is validated and moved directly in here. Nothing is concatenated, uglified, or minified. Vendor scripts are moved in as well.
-
-    /dist.dev
-    |
-    |---- /bower_components
-    |
-    |---- /components
-    |     |
-    |     ...
-    |
-    |---- /styles
-    |     |
-    |     ...
-    |
-    |---- app.js
-    |
-    |---- index.html
-
-### /dist.prod
-
-Sources built for production. Everything is validated, things are concatenated and uglified. HTML partials are pre-loaded into the angular template cache with gulp-ng-html2js.
-
-    /dist.prod
-    |
-    |---- /scripts
-    |     |
-    |     |---- app.min.js
-    |     |---- vendor.min.js
-    |
-    |---- /styles
-    |     |
-    |     |---- app.min.css
-    |
-    |---- index.html
-    
-Pretty self-explanatory.
-
-## Gulp Tasks
-
-All of the following are available from the command line.
-
-### Essential ones
-
-These tasks I use as part of my regular developments and deploy scripts:
-
-- __`gulp watch-dev`__ Clean, build, and watch live changes to the dev environment. Built sources are served directly by the dev server from /dist.dev.
-- __`gulp watch-prod`__ Clean, build, and watch live changes to the prod environment. Built sources are served directly by the dev server from /dist.prod.
-- __`gulp`__ Default task builds for prod. Built sources are put into /dist.prod, and can be served directly.
-
-### Sub-tasks
-
-All the subtasks can alo be run from the command line:
-
-__HTML__
-
-- __`gulp validate-partials`__ Checks html source files for syntax errors.
-- __`gulp validate-index`__ Checks index.html for syntax errors.
-- __`gulp build-partials-dev`__ Moves html source files into the dev environment.
-
-__Scripts__
-
-- __`gulp convert-partials-to-js`__ Converts partials to javascript using html2js.
-- __`gulp validate-devserver-scripts`__ Runs jshint on the dev server scripts.
-- __`gulp validate-app-scripts`__ Runs jshint on the app scripts.
-- __`gulp build-app-scripts-dev`__ Moves app scripts into the dev environment.
-- __`gulp build-app-scripts-prod`__ Concatenates, uglifies, and moves app scripts and partials into the prod environment.
-
-__Styles__
-
-- __`gulp build-styles-dev`__ Compiles app sass and moves to the dev environment.
-- __`gulp build-styles-prod`__ Compiles and minifies app sass to css and moves to the prod environment.
-- __`gulp build-vendor-scripts-dev`__ Moves vendor scripts into the dev environment.
-- __`gulp build-vendor-scripts-prod`__ Concatenates, uglifies, and moves vendor scripts into the prod environment.
-
-__Index__
-- __`gulp build-index-dev`__ Validates and injects sources into index.html and moves it to the dev environment.
-- __`gulp build-index-prod`__ Validates and injects sources into index.html, minifies and moves it to the dev environment.
-
-__Everything__
-
-- __`gulp build-app-dev`__ Builds a complete dev environment.
-- __`gulp build-app-prod`__ Builds a complete prod environment.
-- __`gulp clean-build-app-dev`__ Cleans and builds a complete dev environment.
-- __`gulp clean-build-app-prod`__ Cleans and builds a complete prod environment.
+### 1.0.0
+- initial release<br>
+22.03.2015

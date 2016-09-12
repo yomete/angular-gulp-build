@@ -1,330 +1,270 @@
-var gulp = require('gulp');
-var plugins = require('gulp-load-plugins')();
-var del = require('del');
-var es = require('event-stream');
-var bowerFiles = require('main-bower-files');
-var print = require('gulp-print');
-var Q = require('q');
+/**
+ * @author  Jozef Butko
+ * @url		  www.jozefbutko.com/resume
+ * @date    March 2015
+ * @license MIT
+ *
+ * AngularJS Boilerplate: Build, watch and other useful tasks
+ *
+ * The build process consists of following steps:
+ * 1. clean /_build folder
+ * 2. compile SASS files, minify and uncss compiled css
+ * 3. copy and minimize images
+ * 4. minify and copy all HTML files into $templateCache
+ * 5. build index.html
+ * 6. minify and copy all JS files
+ * 7. copy fonts
+ * 8. show build folder size
+ * 
+ */
+var gulp            = require('gulp'),
+    browserSync     = require('browser-sync'),
+    reload          = browserSync.reload,
+    $               = require('gulp-load-plugins')(),
+    del             = require('del'),
+    runSequence     = require('run-sequence');
 
-// == PATH STRINGS ========
 
-var paths = {
-    scripts: 'app/**/*.js',
-    styles: ['./app/**/*.css', './app/**/*.scss'],
-    images: './images/**/*',
-    index: './app/index.html',
-    partials: ['app/**/*.html', '!app/index.html'],
-    distDev: './dist.dev',
-    distProd: './dist.prod',
-    distScriptsProd: './dist.prod/scripts',
-    scriptsDevServer: 'devServer/**/*.js'
-};
-
-// == PIPE SEGMENTS ========
-
-var pipes = {};
-
-pipes.orderedVendorScripts = function() {
-    return plugins.order(['jquery.js', 'angular.js']);
-};
-
-pipes.orderedAppScripts = function() {
-    return plugins.angularFilesort();
-};
-
-pipes.minifiedFileName = function() {
-    return plugins.rename(function (path) {
-        path.extname = '.min' + path.extname;
-    });
-};
-
-pipes.validatedAppScripts = function() {
-    return gulp.src(paths.scripts)
-        .pipe(plugins.jshint())
-        .pipe(plugins.jshint.reporter('jshint-stylish'));
-};
-
-pipes.builtAppScriptsDev = function() {
-    return pipes.validatedAppScripts()
-        .pipe(gulp.dest(paths.distDev));
-};
-
-pipes.builtAppScriptsProd = function() {
-    var scriptedPartials = pipes.scriptedPartials();
-    var validatedAppScripts = pipes.validatedAppScripts();
-
-    return es.merge(scriptedPartials, validatedAppScripts)
-        .pipe(pipes.orderedAppScripts())
-        .pipe(plugins.sourcemaps.init())
-            .pipe(plugins.concat('app.min.js'))
-            .pipe(plugins.uglify())
-        .pipe(plugins.sourcemaps.write())
-        .pipe(gulp.dest(paths.distScriptsProd));
-};
-
-pipes.builtVendorScriptsDev = function() {
-    return gulp.src(bowerFiles())
-        .pipe(gulp.dest('dist.dev/bower_components'));
-};
-
-pipes.builtVendorScriptsProd = function() {
-    return gulp.src(bowerFiles('**/*.js'))
-        .pipe(pipes.orderedVendorScripts())
-        .pipe(plugins.concat('vendor.min.js'))
-        .pipe(plugins.uglify())
-        .pipe(gulp.dest(paths.distScriptsProd));
-};
-
-pipes.validatedDevServerScripts = function() {
-    return gulp.src(paths.scriptsDevServer)
-        .pipe(plugins.jshint())
-        .pipe(plugins.jshint.reporter('jshint-stylish'));
-};
-
-pipes.validatedPartials = function() {
-    return gulp.src(paths.partials)
-        .pipe(plugins.htmlhint({'doctype-first': false}))
-        .pipe(plugins.htmlhint.reporter());
-};
-
-pipes.builtPartialsDev = function() {
-    return pipes.validatedPartials()
-        .pipe(gulp.dest(paths.distDev));
-};
-
-pipes.scriptedPartials = function() {
-    return pipes.validatedPartials()
-        .pipe(plugins.htmlhint.failReporter())
-        .pipe(plugins.htmlmin({collapseWhitespace: true, removeComments: true}))
-        .pipe(plugins.ngHtml2js({
-            moduleName: "healthyGulpAngularApp"
-        }));
-};
-
-pipes.builtStylesDev = function() {
-    return gulp.src(paths.styles)
-        .pipe(plugins.sass())
-        .pipe(gulp.dest(paths.distDev));
-};
-
-pipes.builtStylesProd = function() {
-    return gulp.src(paths.styles)
-        .pipe(plugins.sourcemaps.init())
-            .pipe(plugins.sass())
-            .pipe(plugins.minifyCss())
-        .pipe(plugins.sourcemaps.write())
-        .pipe(pipes.minifiedFileName())
-        .pipe(gulp.dest(paths.distProd));
-};
-
-pipes.processedImagesDev = function() {
-    return gulp.src(paths.images)
-        .pipe(gulp.dest(paths.distDev + '/images/'));
-};
-
-pipes.processedImagesProd = function() {
-    return gulp.src(paths.images)
-        .pipe(gulp.dest(paths.distProd + '/images/'));
-};
-
-pipes.validatedIndex = function() {
-    return gulp.src(paths.index)
-        .pipe(plugins.htmlhint())
-        .pipe(plugins.htmlhint.reporter());
-};
-
-pipes.builtIndexDev = function() {
-
-    var orderedVendorScripts = pipes.builtVendorScriptsDev()
-        .pipe(pipes.orderedVendorScripts());
-
-    var orderedAppScripts = pipes.builtAppScriptsDev()
-        .pipe(pipes.orderedAppScripts());
-
-    var appStyles = pipes.builtStylesDev();
-
-    return pipes.validatedIndex()
-        .pipe(gulp.dest(paths.distDev)) // write first to get relative path for inject
-        .pipe(plugins.inject(orderedVendorScripts, {relative: true, name: 'bower'}))
-        .pipe(plugins.inject(orderedAppScripts, {relative: true}))
-        .pipe(plugins.inject(appStyles, {relative: true}))
-        .pipe(gulp.dest(paths.distDev));
-};
-
-pipes.builtIndexProd = function() {
-
-    var vendorScripts = pipes.builtVendorScriptsProd();
-    var appScripts = pipes.builtAppScriptsProd();
-    var appStyles = pipes.builtStylesProd();
-
-    return pipes.validatedIndex()
-        .pipe(gulp.dest(paths.distProd)) // write first to get relative path for inject
-        .pipe(plugins.inject(vendorScripts, {relative: true, name: 'bower'}))
-        .pipe(plugins.inject(appScripts, {relative: true}))
-        .pipe(plugins.inject(appStyles, {relative: true}))
-        .pipe(plugins.htmlmin({collapseWhitespace: true, removeComments: true}))
-        .pipe(gulp.dest(paths.distProd));
-};
-
-pipes.builtAppDev = function() {
-    return es.merge(pipes.builtIndexDev(), pipes.builtPartialsDev(), pipes.processedImagesDev());
-};
-
-pipes.builtAppProd = function() {
-    return es.merge(pipes.builtIndexProd(), pipes.processedImagesProd());
-};
-
-// == TASKS ========
-
-// removes all compiled dev files
-gulp.task('clean-dev', function() {
-    var deferred = Q.defer();
-    del(paths.distDev, function() {
-        deferred.resolve();
-    });
-    return deferred.promise;
+// optimize images
+gulp.task('images', function() {
+  return gulp.src('./images/**/*')
+    .pipe($.changed('./_build/images'))
+    .pipe($.imagemin({
+      optimizationLevel: 3,
+      progressive: true,
+      interlaced: true
+    }))
+    .pipe(gulp.dest('./_build/images'));
 });
 
-// removes all compiled production files
-gulp.task('clean-prod', function() {
-    var deferred = Q.defer();
-    del(paths.distProd, function() {
-        deferred.resolve();
-    });
-    return deferred.promise;
+// browser-sync task, only cares about compiled CSS
+gulp.task('browser-sync', function() {
+  browserSync({
+    server: {
+      baseDir: "./"
+    }
+  });
 });
 
-// checks html source files for syntax errors
-gulp.task('validate-partials', pipes.validatedPartials);
-
-// checks index.html for syntax errors
-gulp.task('validate-index', pipes.validatedIndex);
-
-// moves html source files into the dev environment
-gulp.task('build-partials-dev', pipes.builtPartialsDev);
-
-// converts partials to javascript using html2js
-gulp.task('convert-partials-to-js', pipes.scriptedPartials);
-
-// runs jshint on the dev server scripts
-gulp.task('validate-devserver-scripts', pipes.validatedDevServerScripts);
-
-// runs jshint on the app scripts
-gulp.task('validate-app-scripts', pipes.validatedAppScripts);
-
-// moves app scripts into the dev environment
-gulp.task('build-app-scripts-dev', pipes.builtAppScriptsDev);
-
-// concatenates, uglifies, and moves app scripts and partials into the prod environment
-gulp.task('build-app-scripts-prod', pipes.builtAppScriptsProd);
-
-// compiles app sass and moves to the dev environment
-gulp.task('build-styles-dev', pipes.builtStylesDev);
-
-// compiles and minifies app sass to css and moves to the prod environment
-gulp.task('build-styles-prod', pipes.builtStylesProd);
-
-// moves vendor scripts into the dev environment
-gulp.task('build-vendor-scripts-dev', pipes.builtVendorScriptsDev);
-
-// concatenates, uglifies, and moves vendor scripts into the prod environment
-gulp.task('build-vendor-scripts-prod', pipes.builtVendorScriptsProd);
-
-// validates and injects sources into index.html and moves it to the dev environment
-gulp.task('build-index-dev', pipes.builtIndexDev);
-
-// validates and injects sources into index.html, minifies and moves it to the dev environment
-gulp.task('build-index-prod', pipes.builtIndexProd);
-
-// builds a complete dev environment
-gulp.task('build-app-dev', pipes.builtAppDev);
-
-// builds a complete prod environment
-gulp.task('build-app-prod', pipes.builtAppProd);
-
-// cleans and builds a complete dev environment
-gulp.task('clean-build-app-dev', ['clean-dev'], pipes.builtAppDev);
-
-// cleans and builds a complete prod environment
-gulp.task('clean-build-app-prod', ['clean-prod'], pipes.builtAppProd);
-
-// clean, build, and watch live changes to the dev environment
-gulp.task('watch-dev', ['clean-build-app-dev', 'validate-devserver-scripts'], function() {
-
-    // start nodemon to auto-reload the dev server
-    plugins.nodemon({ script: 'server.js', ext: 'js', watch: ['devServer/'], env: {NODE_ENV : 'development'} })
-        .on('change', ['validate-devserver-scripts'])
-        .on('restart', function () {
-            console.log('[nodemon] restarted dev server');
-        });
-
-    // start live-reload server
-    plugins.livereload.listen({ start: true });
-
-    // watch index
-    gulp.watch(paths.index, function() {
-        return pipes.builtIndexDev()
-            .pipe(plugins.livereload());
-    });
-
-    // watch app scripts
-    gulp.watch(paths.scripts, function() {
-        return pipes.builtAppScriptsDev()
-            .pipe(plugins.livereload());
-    });
-
-    // watch html partials
-    gulp.watch(paths.partials, function() {
-        return pipes.builtPartialsDev()
-            .pipe(plugins.livereload());
-    });
-
-    // watch styles
-    gulp.watch(paths.styles, function() {
-        return pipes.builtStylesDev()
-            .pipe(plugins.livereload());
-    });
-
+// minify JS
+gulp.task('minify-js', function() {
+  gulp.src('js/*.js')
+    .pipe($.uglify())
+    .pipe(gulp.dest('./_build/'));
 });
 
-// clean, build, and watch live changes to the prod environment
-gulp.task('watch-prod', ['clean-build-app-prod', 'validate-devserver-scripts'], function() {
-
-    // start nodemon to auto-reload the dev server
-    plugins.nodemon({ script: 'server.js', ext: 'js', watch: ['devServer/'], env: {NODE_ENV : 'production'} })
-        .on('change', ['validate-devserver-scripts'])
-        .on('restart', function () {
-            console.log('[nodemon] restarted dev server');
-        });
-
-    // start live-reload server
-    plugins.livereload.listen({start: true});
-
-    // watch index
-    gulp.watch(paths.index, function() {
-        return pipes.builtIndexProd()
-            .pipe(plugins.livereload());
-    });
-
-    // watch app scripts
-    gulp.watch(paths.scripts, function() {
-        return pipes.builtAppScriptsProd()
-            .pipe(plugins.livereload());
-    });
-
-    // watch hhtml partials
-    gulp.watch(paths.partials, function() {
-        return pipes.builtAppScriptsProd()
-            .pipe(plugins.livereload());
-    });
-
-    // watch styles
-    gulp.watch(paths.styles, function() {
-        return pipes.builtStylesProd()
-            .pipe(plugins.livereload());
-    });
-
+// minify CSS
+gulp.task('minify-css', function() {
+  gulp.src(['./styles/**/*.css', '!./styles/**/*.min.css'])
+    .pipe($.rename({suffix: '.min'}))
+    .pipe($.minifyCss({keepBreaks:true}))
+    .pipe(gulp.dest('./styles/'))
+    .pipe(gulp.dest('./_build/css/'));
 });
 
-// default task builds for prod
-gulp.task('default', ['clean-build-app-prod']);
+// minify HTML
+gulp.task('minify-html', function() {
+  var opts = {
+    comments: true,
+    spare: true,
+    conditionals: true
+  };
+
+  gulp.src('./*.html')
+    .pipe($.minifyHtml(opts))
+    .pipe(gulp.dest('./_build/'));
+});
+
+// copy fonts from a module outside of our project (like Bower)
+gulp.task('fonts', function() {
+  gulp.src('./fonts/**/*.{ttf,woff,eof,eot,svg}')
+    .pipe($.changed('./_build/fonts'))
+    .pipe(gulp.dest('./_build/fonts'));
+});
+
+// start webserver
+gulp.task('server', function(done) {
+  return browserSync({
+    server: {
+      baseDir: './'
+    }
+  }, done);
+});
+
+// start webserver from _build folder to check how it will look in production
+gulp.task('server-build', function(done) {
+  return browserSync({
+    server: {
+      baseDir: './_build/'
+    }
+  }, done);
+});
+
+// delete build folder
+gulp.task('clean:build', function (cb) {
+  del([
+    './_build/'
+    // if we don't want to clean any file we can use negate pattern
+    //'!dist/mobile/deploy.json'
+  ], cb);
+});
+
+// concat files
+gulp.task('concat', function() {
+  gulp.src('./js/*.js')
+    .pipe($.concat('scripts.js'))
+    .pipe(gulp.dest('./_build/'));
+});
+
+// SASS task, will run when any SCSS files change & BrowserSync
+// will auto-update browsers
+gulp.task('sass', function() {
+  return gulp.src('styles/style.scss')
+    .pipe($.sourcemaps.init())
+    .pipe($.sass({
+      style: 'expanded'
+    }))
+    .on('error', $.notify.onError({
+      title: 'SASS Failed',
+      message: 'Error(s) occurred during compile!'
+    }))
+    .pipe($.sourcemaps.write())
+    .pipe(gulp.dest('styles'))
+    .pipe(reload({
+      stream: true
+    }))
+    .pipe($.notify({
+      message: 'Styles task complete'
+    }));
+});
+
+// SASS Build task
+gulp.task('sass:build', function() {
+  var s = $.size();
+
+  return gulp.src('styles/style.scss')
+    .pipe($.sass({
+      style: 'compact'
+    }))
+    .pipe($.autoprefixer('last 3 version'))
+    .pipe($.uncss({
+      html: ['./index.html', './views/**/*.html', './components/**/*.html'],
+      ignore: [
+        '.index',
+        '.slick',
+        /\.owl+/,
+        /\.owl-next/,
+        /\.owl-prev/
+      ]
+    }))
+    .pipe($.minifyCss({
+      keepBreaks: true,
+      aggressiveMerging: false,
+      advanced: false
+    }))
+    .pipe($.rename({suffix: '.min'}))
+    .pipe(gulp.dest('_build/css'))
+    .pipe(s)
+    .pipe($.notify({
+      onLast: true,
+      message: function() {
+        return 'Total CSS size ' + s.prettySize;
+      }
+    }));
+});
+
+// BUGFIX: warning: possible EventEmitter memory leak detected. 11 listeners added.
+require('events').EventEmitter.prototype._maxListeners = 100;
+
+// index.html build
+// script/css concatenation
+gulp.task('usemin', function() {
+  return gulp.src('./index.html')
+    // add templates path
+    .pipe($.htmlReplace({
+      'templates': '<script type="text/javascript" src="js/templates.js"></script>'
+    }))
+    .pipe($.usemin({
+      css: [$.minifyCss(), 'concat'],
+      libs: [$.uglify()],
+      nonangularlibs: [$.uglify()],
+      angularlibs: [$.uglify()],
+      appcomponents: [$.uglify()],
+      mainapp: [$.uglify()]
+    }))
+    .pipe(gulp.dest('./_build/'));
+});
+
+// make templateCache from all HTML files
+gulp.task('templates', function() {
+  return gulp.src([
+      './**/*.html',
+      '!bower_components/**/*.*',
+      '!node_modules/**/*.*',
+      '!_build/**/*.*'
+    ])
+    .pipe($.minifyHtml())
+    .pipe($.angularTemplatecache({
+      module: 'boilerplate'
+    }))
+    .pipe(gulp.dest('_build/js'));
+});
+
+// reload all Browsers
+gulp.task('bs-reload', function() {
+  browserSync.reload();
+});
+
+// calculate build folder size
+gulp.task('build:size', function() {
+  var s = $.size();
+
+  return gulp.src('./_build/**/*.*')
+    .pipe(s)
+    .pipe($.notify({
+      onLast: true,
+      message: function() {
+        return 'Total build size ' + s.prettySize;
+      }
+    }));
+});
+
+
+// default task to be run with `gulp` command
+// this default task will run BrowserSync & then use Gulp to watch files.
+// when a file is changed, an event is emitted to BrowserSync with the filepath.
+gulp.task('default', ['browser-sync', 'sass', 'minify-css'], function() {
+  gulp.watch('styles/*.css', function(file) {
+    if (file.type === "changed") {
+      reload(file.path);
+    }
+  });
+  gulp.watch(['*.html', 'views/*.html'], ['bs-reload']);
+  gulp.watch(['app/*.js', 'components/**/*.js', 'js/*.js'], ['bs-reload']);
+  gulp.watch('styles/**/*.scss', ['sass', 'minify-css']);
+});
+
+
+/**
+ * build task:
+ * 1. clean /_build folder
+ * 2. compile SASS files, minify and uncss compiled css
+ * 3. copy and minimize images
+ * 4. minify and copy all HTML files into $templateCache
+ * 5. build index.html
+ * 6. minify and copy all JS files
+ * 7. copy fonts
+ * 8. show build folder size
+ * 
+ */
+gulp.task('build', function(callback) {
+  runSequence(
+    'clean:build',
+    'sass:build',
+    'images',
+    'templates',
+    'usemin',
+    'fonts',
+    'build:size',
+    callback);
+});
