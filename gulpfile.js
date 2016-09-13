@@ -1,270 +1,185 @@
-/**
- * @author  Jozef Butko
- * @url		  www.jozefbutko.com/resume
- * @date    March 2015
- * @license MIT
- *
- * AngularJS Boilerplate: Build, watch and other useful tasks
- *
- * The build process consists of following steps:
- * 1. clean /_build folder
- * 2. compile SASS files, minify and uncss compiled css
- * 3. copy and minimize images
- * 4. minify and copy all HTML files into $templateCache
- * 5. build index.html
- * 6. minify and copy all JS files
- * 7. copy fonts
- * 8. show build folder size
- * 
- */
-var gulp            = require('gulp'),
-    browserSync     = require('browser-sync'),
-    reload          = browserSync.reload,
-    $               = require('gulp-load-plugins')(),
-    del             = require('del'),
-    runSequence     = require('run-sequence');
+var gulp               = require('gulp');
+var fs                 = require('fs');
+var plugins            = require('gulp-load-plugins')();
+var es                 = require('event-stream');
+var del                = require('del');
+var historyApiFallback = require('connect-history-api-fallback');
 
+var vendor             = require('./vendor/manifest');
 
-// optimize images
-gulp.task('images', function() {
-  return gulp.src('./images/**/*')
-    .pipe($.changed('./_build/images'))
-    .pipe($.imagemin({
-      optimizationLevel: 3,
-      progressive: true,
-      interlaced: true
-    }))
-    .pipe(gulp.dest('./_build/images'));
+var paths = {
+  appJavascript:    ['app/js/app.js', 'app/js/**/*.js'],
+  appTemplates:     'app/js/**/*.tpl.html',
+  appMainSass:      'app/scss/main.scss',
+  appStyles:        'app/scss/**/*.scss',
+  appImages:        'app/images/**/*',
+  indexHtml:        'app/index.html',
+  vendorFonts:      vendor.fonts || [],
+  vendorJavascript: vendor.javascript || [],
+  vendorCss:        vendor.css || [],
+  finalAppJsPath:   '/js/app.js',
+  finalAppCssPath:  '/css/app.css',
+  specFolder:       ['spec/**/*_spec.js'],
+  tmpFolder:        'tmp',
+  tmpJavascript:    'tmp/js',
+  tmpAppJs:         'tmp/js/app.js',
+  tmpCss:           'tmp/css',
+  tmpFonts:         'tmp/fonts',
+  tmpImages:        'tmp/images',
+  distFolder:       'dist',
+  distJavascript:   'dist/js',
+  distCss:          'dist/css',
+  distFonts:        'dist/fonts',
+  distImages:       'dist/images',
+  distJsManifest:   'dist/js/rev-manifest.json',
+  distCssManifest:  'dist/css/rev-manifest.json'
+};
+
+gulp.task('scripts-dev', function() {
+  return gulp.src(paths.vendorJavascript.concat(paths.appJavascript, paths.appTemplates))
+    .pipe(plugins.if(/html$/, buildTemplates()))
+    .pipe(plugins.sourcemaps.init())
+    .pipe(plugins.concat('app.js'))
+    .pipe(plugins.sourcemaps.write('.'))
+    .pipe(gulp.dest(paths.tmpJavascript))
+    .pipe(plugins.connect.reload());
+});
+gulp.task('scripts-prod', function() {
+  return gulp.src(paths.vendorJavascript.concat(paths.appJavascript, paths.appTemplates))
+    .pipe(plugins.if(/html$/, buildTemplates()))
+    .pipe(plugins.concat('app.js'))
+    .pipe(plugins.ngAnnotate())
+    .pipe(plugins.uglify())
+    .pipe(plugins.rev())
+    .pipe(gulp.dest(paths.distJavascript))
+    .pipe(plugins.rev.manifest({path: 'rev-manifest.json'}))
+    .pipe(gulp.dest(paths.distJavascript));
 });
 
-// browser-sync task, only cares about compiled CSS
-gulp.task('browser-sync', function() {
-  browserSync({
-    server: {
-      baseDir: "./"
-    }
-  });
+gulp.task('styles-dev', function() {
+  return gulp.src(paths.vendorCss.concat(paths.appMainSass))
+    .pipe(plugins.if(/scss$/, plugins.sass()))
+    .pipe(plugins.concat('app.css'))
+    .pipe(gulp.dest(paths.tmpCss))
+    .pipe(plugins.connect.reload());
 });
 
-// minify JS
-gulp.task('minify-js', function() {
-  gulp.src('js/*.js')
-    .pipe($.uglify())
-    .pipe(gulp.dest('./_build/'));
+gulp.task('styles-prod', function() {
+  return gulp.src(paths.vendorCss.concat(paths.appMainSass))
+    .pipe(plugins.if(/scss$/, plugins.sass()))
+    .pipe(plugins.concat('app.css'))
+    .pipe(plugins.cleanCss())
+    .pipe(plugins.rev())
+    .pipe(gulp.dest(paths.distCss))
+    .pipe(plugins.rev.manifest({path: 'rev-manifest.json'}))
+    .pipe(gulp.dest(paths.distCss));
 });
 
-// minify CSS
-gulp.task('minify-css', function() {
-  gulp.src(['./styles/**/*.css', '!./styles/**/*.min.css'])
-    .pipe($.rename({suffix: '.min'}))
-    .pipe($.minifyCss({keepBreaks:true}))
-    .pipe(gulp.dest('./styles/'))
-    .pipe(gulp.dest('./_build/css/'));
+gulp.task('fonts-dev', function() {
+  return gulp.src(paths.vendorFonts)
+    .pipe(gulp.dest(paths.tmpFonts));
 });
 
-// minify HTML
-gulp.task('minify-html', function() {
-  var opts = {
-    comments: true,
-    spare: true,
-    conditionals: true
+gulp.task('fonts-prod', function() {
+  return gulp.src(paths.vendorFonts)
+    .pipe(gulp.dest(paths.distFonts));
+});
+
+gulp.task('images-dev', function() {
+  return gulp.src(paths.appImages)
+    .pipe(gulp.dest(paths.tmpImages))
+    .pipe(plugins.connect.reload());
+});
+
+gulp.task('images-prod', function() {
+  return gulp.src(paths.appImages)
+    .pipe(gulp.dest(paths.distImages));
+});
+
+gulp.task('indexHtml-dev', ['scripts-dev', 'styles-dev'], function() {
+  var manifest = {
+    js: paths.finalAppJsPath,
+    css: paths.finalAppCssPath
   };
 
-  gulp.src('./*.html')
-    .pipe($.minifyHtml(opts))
-    .pipe(gulp.dest('./_build/'));
+  return gulp.src(paths.indexHtml)
+    .pipe(plugins.template({css: manifest['css'], js: manifest['js']}))
+    .pipe(gulp.dest(paths.tmpFolder))
+    .pipe(plugins.connect.reload());
 });
 
-// copy fonts from a module outside of our project (like Bower)
-gulp.task('fonts', function() {
-  gulp.src('./fonts/**/*.{ttf,woff,eof,eot,svg}')
-    .pipe($.changed('./_build/fonts'))
-    .pipe(gulp.dest('./_build/fonts'));
+gulp.task('indexHtml-prod', ['scripts-prod', 'styles-prod'], function() {
+  var jsManifest  = JSON.parse(fs.readFileSync(paths.distJsManifest, 'utf8'));
+  var cssManifest = JSON.parse(fs.readFileSync(paths.distCssManifest, 'utf8'));
+
+  var manifest = {
+    js: '/js/' + jsManifest['app.js'],
+    css: '/css/' + cssManifest['app.css']
+  };
+
+  return gulp.src(paths.indexHtml)
+    .pipe(plugins.template({css: manifest['css'], js: manifest['js']}))
+    .pipe(plugins.rename('index.html'))
+    .pipe(gulp.dest(paths.distFolder));
 });
 
-// start webserver
-gulp.task('server', function(done) {
-  return browserSync({
-    server: {
-      baseDir: './'
-    }
-  }, done);
+gulp.task('lint', function() {
+  return gulp.src(paths.appJavascript.concat(paths.specFolder))
+    .pipe(plugins.jshint())
+    .pipe(plugins.jshint.reporter('jshint-stylish'));
 });
 
-// start webserver from _build folder to check how it will look in production
-gulp.task('server-build', function(done) {
-  return browserSync({
-    server: {
-      baseDir: './_build/'
-    }
-  }, done);
-});
-
-// delete build folder
-gulp.task('clean:build', function (cb) {
-  del([
-    './_build/'
-    // if we don't want to clean any file we can use negate pattern
-    //'!dist/mobile/deploy.json'
-  ], cb);
-});
-
-// concat files
-gulp.task('concat', function() {
-  gulp.src('./js/*.js')
-    .pipe($.concat('scripts.js'))
-    .pipe(gulp.dest('./_build/'));
-});
-
-// SASS task, will run when any SCSS files change & BrowserSync
-// will auto-update browsers
-gulp.task('sass', function() {
-  return gulp.src('styles/style.scss')
-    .pipe($.sourcemaps.init())
-    .pipe($.sass({
-      style: 'expanded'
-    }))
-    .on('error', $.notify.onError({
-      title: 'SASS Failed',
-      message: 'Error(s) occurred during compile!'
-    }))
-    .pipe($.sourcemaps.write())
-    .pipe(gulp.dest('styles'))
-    .pipe(reload({
-      stream: true
-    }))
-    .pipe($.notify({
-      message: 'Styles task complete'
+gulp.task('testem', function() {
+  return gulp.src(['']) // We don't need files, that is managed on testem.json
+    .pipe(plugins.testem({
+      configFile: 'testem.json'
     }));
 });
 
-// SASS Build task
-gulp.task('sass:build', function() {
-  var s = $.size();
-
-  return gulp.src('styles/style.scss')
-    .pipe($.sass({
-      style: 'compact'
-    }))
-    .pipe($.autoprefixer('last 3 version'))
-    .pipe($.uncss({
-      html: ['./index.html', './views/**/*.html', './components/**/*.html'],
-      ignore: [
-        '.index',
-        '.slick',
-        /\.owl+/,
-        /\.owl-next/,
-        /\.owl-prev/
-      ]
-    }))
-    .pipe($.minifyCss({
-      keepBreaks: true,
-      aggressiveMerging: false,
-      advanced: false
-    }))
-    .pipe($.rename({suffix: '.min'}))
-    .pipe(gulp.dest('_build/css'))
-    .pipe(s)
-    .pipe($.notify({
-      onLast: true,
-      message: function() {
-        return 'Total CSS size ' + s.prettySize;
-      }
-    }));
+gulp.task('clean', function(cb) {
+  del([paths.tmpFolder, paths.distFolder], cb);
 });
 
-// BUGFIX: warning: possible EventEmitter memory leak detected. 11 listeners added.
-require('events').EventEmitter.prototype._maxListeners = 100;
-
-// index.html build
-// script/css concatenation
-gulp.task('usemin', function() {
-  return gulp.src('./index.html')
-    // add templates path
-    .pipe($.htmlReplace({
-      'templates': '<script type="text/javascript" src="js/templates.js"></script>'
-    }))
-    .pipe($.usemin({
-      css: [$.minifyCss(), 'concat'],
-      libs: [$.uglify()],
-      nonangularlibs: [$.uglify()],
-      angularlibs: [$.uglify()],
-      appcomponents: [$.uglify()],
-      mainapp: [$.uglify()]
-    }))
-    .pipe(gulp.dest('./_build/'));
+gulp.task('watch', ['webserver'], function() {
+  gulp.watch(paths.appJavascript, ['lint', 'scripts-dev']);
+  gulp.watch(paths.appTemplates, ['scripts-dev']);
+  gulp.watch(paths.vendorJavascript, ['scripts-dev']);
+  gulp.watch(paths.appImages, ['images-dev']);
+  gulp.watch(paths.specFolder, ['lint']);
+  gulp.watch(paths.indexHtml, ['indexHtml-dev']);
+  gulp.watch(paths.appStyles, ['styles-dev']);
+  gulp.watch(paths.vendorCss, ['styles-dev']);
 });
 
-// make templateCache from all HTML files
-gulp.task('templates', function() {
-  return gulp.src([
-      './**/*.html',
-      '!bower_components/**/*.*',
-      '!node_modules/**/*.*',
-      '!_build/**/*.*'
-    ])
-    .pipe($.minifyHtml())
-    .pipe($.angularTemplatecache({
-      module: 'boilerplate'
-    }))
-    .pipe(gulp.dest('_build/js'));
-});
-
-// reload all Browsers
-gulp.task('bs-reload', function() {
-  browserSync.reload();
-});
-
-// calculate build folder size
-gulp.task('build:size', function() {
-  var s = $.size();
-
-  return gulp.src('./_build/**/*.*')
-    .pipe(s)
-    .pipe($.notify({
-      onLast: true,
-      message: function() {
-        return 'Total build size ' + s.prettySize;
-      }
-    }));
-});
-
-
-// default task to be run with `gulp` command
-// this default task will run BrowserSync & then use Gulp to watch files.
-// when a file is changed, an event is emitted to BrowserSync with the filepath.
-gulp.task('default', ['browser-sync', 'sass', 'minify-css'], function() {
-  gulp.watch('styles/*.css', function(file) {
-    if (file.type === "changed") {
-      reload(file.path);
+gulp.task('webserver', ['indexHtml-dev', 'fonts-dev', 'images-dev'], function() {
+  plugins.connect.server({
+    root: paths.tmpFolder,
+    port: 5000,
+    livereload: true,
+    middleware: function(connect, o) {
+      return [ (function() {
+        var url = require('url');
+        var proxy = require('proxy-middleware');
+        var options = url.parse('http://localhost:8080/api');
+        options.route = '/api';
+        return proxy(options);
+      })(), historyApiFallback() ];
     }
   });
-  gulp.watch(['*.html', 'views/*.html'], ['bs-reload']);
-  gulp.watch(['app/*.js', 'components/**/*.js', 'js/*.js'], ['bs-reload']);
-  gulp.watch('styles/**/*.scss', ['sass', 'minify-css']);
 });
 
+gulp.task('default', ['watch']);
+gulp.task('production', ['scripts-prod', 'styles-prod', 'fonts-prod', 'images-prod', 'indexHtml-prod']);
 
-/**
- * build task:
- * 1. clean /_build folder
- * 2. compile SASS files, minify and uncss compiled css
- * 3. copy and minimize images
- * 4. minify and copy all HTML files into $templateCache
- * 5. build index.html
- * 6. minify and copy all JS files
- * 7. copy fonts
- * 8. show build folder size
- * 
- */
-gulp.task('build', function(callback) {
-  runSequence(
-    'clean:build',
-    'sass:build',
-    'images',
-    'templates',
-    'usemin',
-    'fonts',
-    'build:size',
-    callback);
-});
+function buildTemplates() {
+  return es.pipeline(
+    plugins.minifyHtml({
+      empty: true,
+      spare: true,
+      quotes: true
+    }),
+    plugins.angularTemplatecache({
+      module: 'app'
+    })
+  );
+}

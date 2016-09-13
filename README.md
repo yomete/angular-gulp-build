@@ -1,116 +1,172 @@
-# AngularJS-Boilerplate
-Simple AngularJS Boilerplate to kick start your new project with SASS support and Gulp watch/build tasks
+# Fox's Angular.js Gulp Workflow
 
-# Features
-* SASS support including sourceMaps
-* Minimal CSS styling of the view
-* Gulp watch, build and local server tasks
-* Responsive navigation
-* Owl slider directive
-* localStorage service for set, get, remove data
-* queryService $http wrapper to handle calls
-* clear folder structure
-* less than 10 request in build version
-* minified CSS and JS build files
-* google analytics snippet
+[![devDependency Status](https://david-dm.org/Foxandxss/fox-angular-gulp-workflow/dev-status.svg)](https://david-dm.org/Foxandxss/fox-angular-gulp-workflow#info=devDependencies)
 
-## Download
-```bash
-bower install angularjs-boilerplate
+**If you would like a modern workflow using ES6, use my [webpack boilerplate](https://github.com/Foxandxss/angular-webpack-workflow)**
+
+Here is *yet another opinionated angular boilerplate* with how I work with Angular. I made it for myself but if you find that my opinions are good for you, feel free to use it and collaborate with issues or pull requests.
+
+Let's start with the `app` folder:
+
+![App folder](http://i.imgur.com/Fppy0Ge.png)
+
+In the `app` folder you can find 3 subdirectories:
+
+* **images**: You can put there the images you need, nothing special here.
+* **scss**: There is a `main.scss` file there were you import all your other `.scss` files.
+* **js**: There is where you put your javascript code. It comes with a `app.js` file with the main `app` module created.
+
+You can also find:
+
+**index.html**: It is only the basic skeleton with the angular application loaded. It is a `lodash template` so we can have cache-busting on production.
+
+## Structuring your Angular app in the `js` folder.
+
+We split our application per `features`, so if we have an application to manage `users`, we can decide that a page to manage those `users` is a feature and also the `settings` page is another feature. Also we need some authentication services and stuff like that. That is not a feature of our app, but something **common** to the entire app. How can we organize that?
+
+![App structure](http://i.imgur.com/RtlhXuE.png)
+
+Looking at the image, we can see that `features` folder where we put all our features. We create a subdirectory with the feature name and then inside a `javascript` file to code that feature and also a `.tpl.html` file for its template. the `.tpl.html` is my convention, you can change that in the `gulpfile.js`.
+
+If a feature gets big enough, you can create multiple `.js` files, that is not a problem.
+
+For **common** stuff, we created a `common` folder where we can put all our `services` and `directives`. Notice how I put the `foo` directive template inside the same folder.
+
+The workflow won't force you to use this structure, the only forced convention here is to put your templates under `/js` and not under `/templates` or something like that. Also the extension being `*.tpl.html` is needed (again, easy to change in the `gulpfile.js`). Leaving that aside, you're free to code your app in the way you like.
+
+```javascript
+appTemplates:     'app/js/**/*.tpl.html',
 ```
 
-or
+## Testing your app
 
-```bash
-git clone https://github.com/jbutko/AngularJS-Boilerplate.git
+The only convention here is to name your tests like: `*_spec.js`. Leaving that aside, you can structure it the way you like.
+
+You can do it per features like our main code or organize them per type (`controllers`, `directives`, etc.).
+
+As a test runner we are using `test'em`, `jasmine 2` as the framework of choice and `Chrome` to run the tests. You can change `jasmine` and `Chrome` in `testem.json`.
+
+```json
+{
+  "framework" : "jasmine2",
+  "launch_in_dev" : ["Chrome"],
+  "src_files" : [
+    "tmp/js/app.js",
+    "vendor/angular-mocks/angular-mocks.js",
+    "spec/**/*_spec.js"
+  ]
+}
 ```
 
-## 1. Setup
-```bash
-npm install
+## Talking with the backend
+
+Our angular app will run on the port `5000` and by default all the requests to the backend are going to use a `proxy` to the port `8080`. How does that work?
+
+Imagine you have a `Rails` backend (the workflow is backend agnostic) running on port `8080` and it serves some `users` information at `/api/users`. Since the `Rails` app runs on port `8080` and our `Angular` app runs on the port `5000` we would need to do something like:
+
+```javascript
+$http.get('localhost:8080/api/users');
 ```
-- install all npm and bower dependencies
+And then activate `CORS` in our `Rails` app. That is not needed here, we can safely do:
 
-**Note:** If `npm install` fails during dependency installation it will be likely caused by `gulp-imagemin`. In that case remove `gulp-imagemin` dependency from `package.json`, run `npm install` again and then install `gulp-imagemin` separately with following command: `npm install gulp-imagemin --save-dev`
-
-## 2. Watch files
-```bash
-gulp
+```javascript
+$http.get('/api/users');
 ```
-- all SCSS/HTML will be watched for changes and injected into browser thanks to BrowserSync
+Without any need of `CORS`. Thanks to our `proxy`, our `Angular` app will think that the backend is running in the same domain and port so if we deploy both application together (like putting our `angular` app into `Rails'` `/public` directory) we don't need to change anything in our code.
 
-## 3. Build production version
-```bash
-gulp build
-```
-- this will process following tasks:
-* clean _build folder
-* compile SASS files, minify and uncss compiled css
-* copy and optimize images
-* minify and copy all HTML files into $templateCache
-* build index.html
-* minify and copy all JS files
-* copy fonts
-* show build folder size
-
-## 4. Start webserver without watch task
-```bash
-gulp server
-```
-
-## 5. Start webserver from build folder
-```bash
-gulp server-build
+```javascript
+gulp.task('webserver', ['indexHtml-dev', 'images-dev'], function() {
+  plugins.connect.server({
+    root: paths.tmpFolder,
+    port: 5000,
+    livereload: true,
+    middleware: function(connect, o) {
+        return [ (function() {
+            var url = require('url');
+            var proxy = require('proxy-middleware');
+            var options = url.parse('http://localhost:8080/api');
+            options.route = '/api';
+            return proxy(options);
+        })(), historyApiFallback ];
+    }
+  });
+});
 ```
 
-## Contact
-Copyright (C) 2015 Jozef Butko<br>
-[www.jozefbutko.com/resume](http://www.jozefbutko.com/resume)<br>
-[www.github.com/jbutko](http://www.github.com/jbutko)<br>
-[@jozefbutko](http://www.twitter.com/jozefbutko)<br>
-Released under MIT license
+There you change our app port and also the port where our backend is running. Also notice that the requests that goes through the `proxy` are the ones that starts with `/api`.
 
-## Changelog
-### 1.1.7
-- Install all dependencies with 'npm install' (bower included) - pull req #7 by @bbodine1<br>
-15.05.2015
+## The gulp tasks
 
-### 1.1.6
-- Cleaned up the gulpfile with gulp-load-plugins - pull req #6 by @davieschoots<br>
-26.04.2015
+To run our tasks and watch for file changes, we just need to run:
 
-### 1.1.5
-- added MIT License<br>
-19.04.2015
+```
+$ gulp
+```
 
-### 1.1.4
-- added minification of JS files in build task<br>
-- added favicon<br>
-- gulpfile.js beautify and clean up<br>
-- added owl carousel into demo<br>
-04.04.2015
+That will generate a `tmp` folder with all our `javascript` files concatenated in one central place. That free us of having to create a `<script>` tag for every javascript we create. Also, our `templates` are going to be cached in `$templateCache` and also appended to the main `app.js` file.
 
-### 1.1.3
-- index.html update: added browserupgrade tag<br>
-- index.html update: http-equiv meta tag, google analytics support<br>
-- comments update in gulpfile.js<br>
-- gulpfile.js formatting<br>
-- pull request #1: removed duplicate gulp require in gulpfile.js<br>
-04.04.2015
+Also that will compile our `scss`, move our images and compile our `index.hbs`, run the webserver and watch for file changes.
 
-### 1.1.2
-- package.json and gulpfile.js clean up<br>
-02.04.2015
+All our `javascript` are going to be linted by `jshint`.
 
-### 1.1.1
-- opened responsive nav fix, css build .min appendix, live demo, github icons<br>
-31.03.2015
+To run our tests, having that `gulp` watching our files for changes, we can do in another terminal:
 
-### 1.1.0
-- many improvements: responsive nav, code clean up, gulp angular templateCache
-support, gulp task for local server, SASS sourceMaps support<br>
-29.03.2015
+```
+$ gulp testem
+```
+That will fire `test'em` which will grab all our changes and re-run the tests.
 
-### 1.0.0
-- initial release<br>
-22.03.2015
+## Compiling your project for production
+
+When you finish your project and you need to generate the final result with all your assets minified and your Angular annotated (for minification purposes), you can do:
+
+```
+$ gulp production
+```
+
+That will generate a `dist` folder and you can safely move its content to a backend `/public` folder or serve it as is.
+
+## Managing vendors
+
+For the vendors this workflow uses `bower`.
+
+All the bower packages are installed directly on `/vendor` so if you want to install `angular-toastr` for example, you only need to:
+
+```
+$ bower install angular-toastr --save
+```
+
+That will install `angular-toastr` on `/vendor` and also save it on the `bower.json`.
+
+Then you will need to tell `Gulp` that you want to load it, for that you need to open `/vendor/manifest.js` and modify it like:
+
+```javascript
+exports.javascript = [
+  'vendor/angular/angular.js',
+  'vendor/lodash/dist/lodash.js',
+  'vendor/angular-toastr/dist/angular-toastr.js'
+];
+```
+
+There is also a `css` array:
+
+```javascript
+exports.css = [
+
+];
+```
+
+By default this project comes with `angular` and `lodash` already loaded for you.
+
+**NOTE**: `npm install` will also do a `bower install`.
+
+## Known Issues
+
+Sometimes when adding new files (and the watch is running) you can see errors regarding sourcemaps. A restart of gulp fix that.
+
+## TODO
+
+* Proxying for sockets
+* If you add new stuff to `/vendor/manifest.js` you will need to restart `Gulp`.
+* Fix possible issues, this need to be used on real projects yet :P
+* Anything you want?
