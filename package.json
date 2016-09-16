@@ -12,15 +12,18 @@
     "browser-sync": "^2.16.0",
     "browserify": "^13.1.0",
     "gulp": "^3.9.1",
+    "gulp-clean-css": "^2.0.12",
     "gulp-connect": "^5.0.0",
     "gulp-livereload": "^3.8.1",
     "gulp-nodemon": "^2.1.0",
     "gulp-ruby-sass": "^2.1.0",
+    "gulp-uglify": "^2.0.0",
     "vinyl-source-stream": "^1.1.0"
   },
   "dependencies": {
     "angular": "^1.5.8",
     "express": "^4.14.0",
+    "pump": "^1.0.1",
     "ui-router": "^1.0.0-alpha.3"
   }
 }

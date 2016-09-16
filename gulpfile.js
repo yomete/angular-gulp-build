@@ -1,11 +1,14 @@
 var gulp = require('gulp')
 var sass = require('gulp-ruby-sass')
-var connect = require('gulp-connect')
 var browserify = require('browserify')
-var browserSync = require('browser-sync');
+var browserSync = require('browser-sync')
 var source = require('vinyl-source-stream')
 var livereload = require('gulp-livereload')
 var nodemon = require('gulp-nodemon')
+var jslint = require('gulp-jslint')
+var uglify = require('gulp-uglify')
+var pump = require('pump')
+var cleanCSS = require('gulp-clean-css')
 
 
 gulp.task('browser-sync', ['nodemon'], function() {
@@ -41,13 +44,28 @@ gulp.task('browserify', function() {
 		.pipe(source('main.js'))
 		//saves it to the public/js/ directory
 		.pipe(gulp.dest('./public/js/'))
-		.pipe(livereload());
+		.pipe(jslint.reporter( 'my-reporter' ));
+})
+
+gulp.task('compress', function (cb) {
+	pump([
+			gulp.src('public/js/*.js'),
+			uglify(),
+			gulp.dest('public/js/')
+		],
+		cb
+	);
 })
 
 gulp.task('sass', function() {
 	return sass('sass/style.scss')
-		.pipe(gulp.dest('public/css'))
-		.pipe(livereload());
+		.pipe(gulp.dest('public/css'));
+})
+
+gulp.task('minify-css', function() {
+	return gulp.src('public/css/*.css')
+		.pipe(cleanCSS({compatibility: 'ie8'}))
+		.pipe(gulp.dest('public/css/'));
 })
 
 gulp.task('watch', function() {
@@ -56,4 +74,4 @@ gulp.task('watch', function() {
 	livereload.listen()
 })
 
-gulp.task('default', ['browser-sync', 'watch'])
+gulp.task('default', ['browser-sync', 'compress', 'minify-css', 'watch'])
