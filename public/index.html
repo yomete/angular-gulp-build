@@ -3,14 +3,34 @@
 <head>
 	<meta charset="UTF-8">
 	<title>My App</title>
+
+	<!-- bower:css -->
+	<!-- endbower -->
+
 	<link rel="stylesheet" type="text/css" href="css/style.css">
-	<script src="/js/main.js"></script>
 </head>
 <body>
 	<div ng-controller="MainController">
 		<h1>{{message}}</h1>
 		<p>Livereload change works, innit?!</p>
+
+		<input type="text" id="my-address">
+		<button id="getCords" type="button" ng-click="getCor()">getLat&Long</button>
 	</div>
-	
+
+
+	<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBKnIRJ09KswuPMpPyinc4AyiUj27sr_wk&libraries=places"></script>
+	<!-- bower:js -->
+	<script src="bower_components/angular/angular.js"></script>
+	<script src="bower_components/jquery/dist/jquery.js"></script>
+	<script src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
+	<script src="bower_components/lodash/lodash.js"></script>
+	<script src="bower_components/restangular/dist/restangular.js"></script>
+	<script src="bower_components/angular-ui-router/release/angular-ui-router.js"></script>
+	<script src="bower_components/ngstorage/ngStorage.js"></script>
+	<!-- endbower -->
+
+	<script src="/js/all.js"></script>
+
 </body>
 </html>

@@ -5,10 +5,12 @@ var browserSync = require('browser-sync')
 var source = require('vinyl-source-stream')
 var livereload = require('gulp-livereload')
 var nodemon = require('gulp-nodemon')
-var jslint = require('gulp-jslint')
 var uglify = require('gulp-uglify')
 var pump = require('pump')
 var cleanCSS = require('gulp-clean-css')
+var wiredep = require('wiredep').stream
+var inject = require('gulp-inject')
+var concat = require('gulp-concat');
 
 
 gulp.task('browser-sync', ['nodemon'], function() {
@@ -18,7 +20,7 @@ gulp.task('browser-sync', ['nodemon'], function() {
         browser: "google chrome",
         port: 7000,
 	});
-});
+})
 
 gulp.task('nodemon', function (cb) {
 	
@@ -34,32 +36,25 @@ gulp.task('nodemon', function (cb) {
 			started = true; 
 		} 
 	});
-});
-
-gulp.task('browserify', function() {
-	//grabs the app.js file
-	return browserify('./app/app.js')
-		//bundles it and creates a file named main.js
-		.bundle()
-		.pipe(source('main.js'))
-		//saves it to the public/js/ directory
-		.pipe(gulp.dest('./public/js/'))
-		.pipe(jslint.reporter( 'my-reporter' ));
 })
 
-gulp.task('compress', function (cb) {
-	pump([
-			gulp.src('public/js/*.js'),
-			uglify(),
-			gulp.dest('public/js/')
-		],
-		cb
-	);
+gulp.task('bower', function () {
+	gulp.src('public/index.html')
+		.pipe(wiredep())
+		.pipe(gulp.dest('public/'));
 })
+
+gulp.task('scripts', function() {
+	return gulp.src(['app/app.js', 'app/controllers/MainController.js'])
+		.pipe(concat('all.js'))
+		.pipe(gulp.dest('public/js/'));
+})
+
+
 
 gulp.task('sass', function() {
 	return sass('sass/style.scss')
-		.pipe(gulp.dest('public/css'));
+		.pipe(gulp.dest('public/css/'));
 })
 
 gulp.task('minify-css', function() {
@@ -69,9 +64,8 @@ gulp.task('minify-css', function() {
 })
 
 gulp.task('watch', function() {
-	gulp.watch('app/**/*.js', ['browserify'])
 	gulp.watch('sass/style.scss', ['sass'])
 	livereload.listen()
 })
 
-gulp.task('default', ['browser-sync', 'compress', 'minify-css', 'watch'])
+gulp.task('default', ['browser-sync', 'minify-css', 'watch', 'bower', 'scripts'])
