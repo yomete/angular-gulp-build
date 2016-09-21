@@ -1,42 +1,19 @@
 var gulp = require('gulp')
-var sass = require('gulp-ruby-sass')
-var browserify = require('browserify')
+var sass = require('gulp-sass')
 var browserSync = require('browser-sync')
-var source = require('vinyl-source-stream')
-var livereload = require('gulp-livereload')
-var nodemon = require('gulp-nodemon')
 var uglify = require('gulp-uglify')
 var pump = require('pump')
 var cleanCSS = require('gulp-clean-css')
-var wiredep = require('wiredep').stream
+var wiredep = require('wiredep').stream;
 var inject = require('gulp-inject')
 var concat = require('gulp-concat');
+var	uglify = require('gulp-uglify');
+var	jshint = require('gulp-jshint');
+var	cssnano = require('gulp-cssnano');
+var	sourcemaps = require('gulp-sourcemaps');
+var rename = require('gulp-rename');
 
 
-gulp.task('browser-sync', ['nodemon'], function() {
-	browserSync.init(null, {
-		proxy: "http://localhost:5000",
-        files: ["public/**/*.*"],
-        browser: "google chrome",
-        port: 7000,
-	});
-})
-
-gulp.task('nodemon', function (cb) {
-	
-	var started = false;
-	
-	return nodemon({
-		script: 'server.js'
-	}).on('start', function () {
-		// to avoid nodemon being started multiple times
-		// thanks @matthisk
-		if (!started) {
-			cb();
-			started = true; 
-		} 
-	});
-})
 
 gulp.task('bower', function () {
 	gulp.src('public/index.html')
@@ -47,25 +24,49 @@ gulp.task('bower', function () {
 gulp.task('scripts', function() {
 	return gulp.src(['app/app.js', 'app/controllers/MainController.js'])
 		.pipe(concat('all.js'))
-		.pipe(gulp.dest('public/js/'));
+		.pipe(gulp.dest('public/js/'))
+		.pipe(sourcemaps.init())
+		.pipe(jshint('.jshintrc'))
+		.pipe(jshint.reporter('default'))
+		.pipe(gulp.dest('public/js/'))
+		.pipe(uglify())
+		.pipe(rename({ suffix: '.min' }))
+		.pipe(sourcemaps.write())
+		.pipe(gulp.dest('public/js/'))
+		.pipe(browserSync.reload({stream:true, once: true}));
 })
 
+gulp.task('css', function () {
+	return gulp.src('sass/style.scss')
+		.pipe(sourcemaps.init())
+		.pipe(sass().on('error', sass.logError))
+		.pipe(gulp.dest('public/css/'))
+		.pipe(cssnano())
+		.pipe(rename({ suffix: '.min' }))
+		.pipe(sourcemaps.write())
+		.pipe(gulp.dest('public/css'))
+		.pipe(browserSync.reload({stream:true}));
+});
 
 
-gulp.task('sass', function() {
-	return sass('sass/style.scss')
-		.pipe(gulp.dest('public/css/'));
-})
+gulp.task('browser-sync', function() {
+	browserSync.init(null, {
+		server: {
+			baseDir: "public"
+		}
+	});
+});
 
-gulp.task('minify-css', function() {
-	return gulp.src('public/css/*.css')
-		.pipe(cleanCSS({compatibility: 'ie8'}))
-		.pipe(gulp.dest('public/css/'));
-})
+gulp.task('bs-reload', function () {
+	browserSync.reload();
+});
 
 gulp.task('watch', function() {
-	gulp.watch('sass/style.scss', ['sass'])
-	livereload.listen()
+
 })
 
-gulp.task('default', ['browser-sync', 'minify-css', 'watch', 'bower', 'scripts'])
+gulp.task('default', ['bower', 'scripts', 'css','browser-sync' ], function () {
+	gulp.watch("sass/*.scss", ['css']);
+	gulp.watch(['app/app.js', 'app/controllers/MainController.js' ], ['scripts']);
+	gulp.watch("public/*.html", ['bs-reload']);
+})
